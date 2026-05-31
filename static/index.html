@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>レシート管理</title>
+  <link rel="stylesheet" href="/style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <div class="layout">
+    <!-- Sidebar -->
+    <nav class="sidebar">
+      <div class="sidebar-logo">
+        <span class="logo-icon">🧾</span>
+        <span class="logo-text">レシート管理</span>
+      </div>
+      <ul class="sidebar-nav">
+        <li><a href="#" class="nav-link active" data-page="dashboard">
+          <span class="nav-icon">📊</span> ダッシュボード
+        </a></li>
+        <li><a href="#" class="nav-link" data-page="receipts">
+          <span class="nav-icon">📄</span> レシート一覧
+        </a></li>
+        <li><a href="#" class="nav-link" data-page="price">
+          <span class="nav-icon">💰</span> 価格比較
+        </a></li>
+      </ul>
+    </nav>
+
+    <!-- Main content -->
+    <main class="main">
+      <!-- Dashboard Page -->
+      <div id="page-dashboard" class="page active">
+        <div class="page-header">
+          <h1>ダッシュボード</h1>
+          <button class="btn btn-primary" id="open-upload-btn">
+            ＋ レシートを追加
+          </button>
+        </div>
+
+        <div class="stats-grid" id="stats-grid">
+          <div class="stat-card">
+            <div class="stat-label">今月の支出</div>
+            <div class="stat-value" id="stat-month">--</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">合計レシート数</div>
+            <div class="stat-value" id="stat-count">--</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">総支出</div>
+            <div class="stat-value" id="stat-total">--</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">最多利用店舗</div>
+            <div class="stat-value" id="stat-top-store">--</div>
+          </div>
+        </div>
+
+        <div class="charts-grid">
+          <div class="card">
+            <h2 class="card-title">月別支出</h2>
+            <canvas id="monthly-chart" height="200"></canvas>
+          </div>
+          <div class="card">
+            <h2 class="card-title">店舗別支出</h2>
+            <canvas id="store-chart" height="200"></canvas>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2 class="card-title">最近のレシート</h2>
+          <table class="table" id="recent-table">
+            <thead>
+              <tr><th>店舗</th><th>日付</th><th>金額</th></tr>
+            </thead>
+            <tbody id="recent-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Receipts Page -->
+      <div id="page-receipts" class="page">
+        <div class="page-header">
+          <h1>レシート一覧</h1>
+          <button class="btn btn-primary" id="open-upload-btn2">
+            ＋ レシートを追加
+          </button>
+        </div>
+        <div class="card">
+          <table class="table">
+            <thead>
+              <tr><th>ID</th><th>店舗</th><th>日付</th><th>金額</th><th>詳細</th></tr>
+            </thead>
+            <tbody id="receipts-tbody"></tbody>
+          </table>
+          <div id="receipts-empty" class="empty-state" style="display:none">
+            レシートがまだありません
+          </div>
+        </div>
+      </div>
+
+      <!-- Price Comparison Page -->
+      <div id="page-price" class="page">
+        <div class="page-header">
+          <h1>価格比較</h1>
+        </div>
+        <div class="card">
+          <div class="search-bar">
+            <input type="text" id="price-search" class="input" placeholder="商品名を入力（例：牛乳、パン）" />
+            <button class="btn btn-primary" id="price-search-btn">検索</button>
+          </div>
+        </div>
+        <div id="price-results-wrap" style="display:none" class="card">
+          <h2 class="card-title">検索結果: <span id="price-query"></span></h2>
+          <table class="table">
+            <thead>
+              <tr>
+                <th>店舗</th>
+                <th>平均価格</th>
+                <th>最安値</th>
+                <th>最高値</th>
+                <th>購入回数</th>
+                <th>最終購入日</th>
+              </tr>
+            </thead>
+            <tbody id="price-tbody"></tbody>
+          </table>
+          <div id="price-empty" class="empty-state" style="display:none">
+            該当する商品が見つかりませんでした
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Upload Modal -->
+  <div id="upload-modal" class="modal" style="display:none">
+    <div class="modal-overlay" id="modal-overlay"></div>
+    <div class="modal-box">
+      <div class="modal-header">
+        <h2>レシートをアップロード</h2>
+        <button class="modal-close" id="modal-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <div id="drop-zone" class="drop-zone">
+          <div class="drop-zone-text">
+            <div class="drop-icon">📷</div>
+            <p>ここにレシート画像をドラッグ&ドロップ<br>または</p>
+            <label class="btn btn-outline" for="file-input">ファイルを選択</label>
+            <input type="file" id="file-input" accept="image/*" style="display:none" />
+          </div>
+          <img id="preview-img" style="display:none; max-width:100%; max-height:300px; border-radius:8px;" />
+        </div>
+
+        <div id="upload-result" style="display:none" class="upload-result">
+          <h3>抽出結果</h3>
+          <div id="result-content"></div>
+        </div>
+
+        <div id="upload-loading" style="display:none" class="loading-wrap">
+          <div class="spinner"></div>
+          <p>AIがレシートを解析中...</p>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" id="modal-cancel">キャンセル</button>
+        <button class="btn btn-primary" id="upload-btn" disabled>アップロード</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Receipt Detail Modal -->
+  <div id="detail-modal" class="modal" style="display:none">
+    <div class="modal-overlay" id="detail-overlay"></div>
+    <div class="modal-box">
+      <div class="modal-header">
+        <h2 id="detail-title">レシート詳細</h2>
+        <button class="modal-close" id="detail-close">✕</button>
+      </div>
+      <div class="modal-body" id="detail-body"></div>
+    </div>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
