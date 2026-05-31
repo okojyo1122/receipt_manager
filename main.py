@@ -10,6 +10,7 @@ from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from pydantic import BaseModel
 from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, ForeignKey, func
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
@@ -66,6 +67,20 @@ def get_db():
         yield db
     finally:
         db.close()
+
+# Pydantic models for manual entry
+class ReceiptItemIn(BaseModel):
+    name: str
+    quantity: float = 1
+    unit_price: float
+    subtotal: float | None = None
+
+class ReceiptIn(BaseModel):
+    store_name: str
+    date: str
+    total_amount: float
+    items: list[ReceiptItemIn] = []
+
 
 def extract_receipt_data(image_bytes: bytes, content_type: str) -> dict:
     api_key = os.environ.get("ANTHROPIC_API_KEY")
@@ -126,20 +141,21 @@ def extract_receipt_data(image_bytes: bytes, content_type: str) -> dict:
 
 @app.post("/api/receipts/upload")
 async def upload_receipt(file: UploadFile = File(...)):
-    from fastapi import Depends
     db = SessionLocal()
     try:
         contents = await file.read()
 
-        # Save image
         ext = Path(file.filename).suffix if file.filename else ".jpg"
         filename = f"{datetime.utcnow().strftime('%Y%m%d%H%M%S%f')}{ext}"
         file_path = UPLOAD_DIR / filename
         with open(file_path, "wb") as f:
             f.write(contents)
 
-        # Extract data via Claude
-        extracted = extract_receipt_data(contents, file.content_type or "image/jpeg")
+        # AI extraction only if API key is set
+        if os.environ.get("ANTHROPIC_API_KEY"):
+            extracted = extract_receipt_data(contents, file.content_type or "image/jpeg")
+        else:
+            extracted = {"store_name": None, "date": None, "total_amount": None, "items": []}
 
         # Save receipt
         receipt = Receipt(
@@ -182,6 +198,102 @@ async def upload_receipt(file: UploadFile = File(...)):
         }
     except HTTPException:
         raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
+
+@app.post("/api/receipts")
+def create_receipt(data: ReceiptIn):
+    db = SessionLocal()
+    try:
+        receipt = Receipt(
+            store_name=data.store_name,
+            date=data.date,
+            total_amount=data.total_amount,
+        )
+        db.add(receipt)
+        db.flush()
+        for item in data.items:
+            ri = ReceiptItem(
+                receipt_id=receipt.id,
+                name=item.name,
+                quantity=item.quantity,
+                unit_price=item.unit_price,
+                subtotal=item.subtotal if item.subtotal is not None else item.unit_price * item.quantity,
+            )
+            db.add(ri)
+        db.commit()
+        db.refresh(receipt)
+        return {
+            "id": receipt.id,
+            "store_name": receipt.store_name,
+            "date": receipt.date,
+            "total_amount": receipt.total_amount,
+            "items": [
+                {"id": i.id, "name": i.name, "quantity": i.quantity,
+                 "unit_price": i.unit_price, "subtotal": i.subtotal}
+                for i in receipt.items
+            ],
+        }
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
+
+@app.post("/api/receipts/sample")
+def insert_sample_data():
+    db = SessionLocal()
+    try:
+        samples = [
+            {"store_name": "スーパーマルエツ", "date": "2026-05-01", "total_amount": 2340, "items": [
+                {"name": "牛乳", "quantity": 2, "unit_price": 198, "subtotal": 396},
+                {"name": "食パン", "quantity": 1, "unit_price": 248, "subtotal": 248},
+                {"name": "卵（10個）", "quantity": 1, "unit_price": 298, "subtotal": 298},
+                {"name": "鶏むね肉", "quantity": 1, "unit_price": 480, "subtotal": 480},
+                {"name": "トマト", "quantity": 3, "unit_price": 158, "subtotal": 474},
+            ]},
+            {"store_name": "コンビニセブン", "date": "2026-05-03", "total_amount": 856, "items": [
+                {"name": "牛乳", "quantity": 1, "unit_price": 238, "subtotal": 238},
+                {"name": "おにぎり", "quantity": 2, "unit_price": 148, "subtotal": 296},
+                {"name": "お茶", "quantity": 1, "unit_price": 158, "subtotal": 158},
+            ]},
+            {"store_name": "業務スーパー", "date": "2026-05-07", "total_amount": 3120, "items": [
+                {"name": "牛乳", "quantity": 3, "unit_price": 168, "subtotal": 504},
+                {"name": "食パン", "quantity": 2, "unit_price": 198, "subtotal": 396},
+                {"name": "鶏むね肉", "quantity": 2, "unit_price": 420, "subtotal": 840},
+                {"name": "パスタ", "quantity": 2, "unit_price": 198, "subtotal": 396},
+            ]},
+            {"store_name": "スーパーマルエツ", "date": "2026-05-12", "total_amount": 1870, "items": [
+                {"name": "卵（10個）", "quantity": 1, "unit_price": 298, "subtotal": 298},
+                {"name": "豚バラ肉", "quantity": 1, "unit_price": 560, "subtotal": 560},
+                {"name": "食パン", "quantity": 1, "unit_price": 248, "subtotal": 248},
+                {"name": "牛乳", "quantity": 1, "unit_price": 198, "subtotal": 198},
+            ]},
+            {"store_name": "コンビニローソン", "date": "2026-05-15", "total_amount": 620, "items": [
+                {"name": "牛乳", "quantity": 1, "unit_price": 228, "subtotal": 228},
+                {"name": "食パン", "quantity": 1, "unit_price": 278, "subtotal": 278},
+            ]},
+            {"store_name": "業務スーパー", "date": "2026-05-20", "total_amount": 2650, "items": [
+                {"name": "鶏むね肉", "quantity": 3, "unit_price": 420, "subtotal": 1260},
+                {"name": "パスタ", "quantity": 1, "unit_price": 198, "subtotal": 198},
+                {"name": "卵（10個）", "quantity": 2, "unit_price": 268, "subtotal": 536},
+            ]},
+        ]
+        for s in samples:
+            r = Receipt(store_name=s["store_name"], date=s["date"], total_amount=s["total_amount"])
+            db.add(r)
+            db.flush()
+            for item in s["items"]:
+                db.add(ReceiptItem(receipt_id=r.id, name=item["name"],
+                                   quantity=item["quantity"], unit_price=item["unit_price"],
+                                   subtotal=item["subtotal"]))
+        db.commit()
+        return {"message": f"{len(samples)}件のサンプルデータを追加しました"}
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))

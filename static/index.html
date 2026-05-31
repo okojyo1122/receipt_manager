@@ -34,9 +34,11 @@
       <div id="page-dashboard" class="page active">
         <div class="page-header">
           <h1>ダッシュボード</h1>
-          <button class="btn btn-primary" id="open-upload-btn">
-            ＋ レシートを追加
-          </button>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-ghost" id="sample-btn">サンプルデータを追加</button>
+            <button class="btn btn-outline" id="open-manual-btn">✏️ 手動登録</button>
+            <button class="btn btn-primary" id="open-upload-btn">📷 画像から登録</button>
+          </div>
         </div>
 
         <div class="stats-grid" id="stats-grid">
@@ -84,9 +86,10 @@
       <div id="page-receipts" class="page">
         <div class="page-header">
           <h1>レシート一覧</h1>
-          <button class="btn btn-primary" id="open-upload-btn2">
-            ＋ レシートを追加
-          </button>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-outline" id="open-manual-btn2">✏️ 手動登録</button>
+            <button class="btn btn-primary" id="open-upload-btn2">📷 画像から登録</button>
+          </div>
         </div>
         <div class="card">
           <table class="table">
@@ -133,6 +136,50 @@
         </div>
       </div>
     </main>
+  </div>
+
+  <!-- Manual Entry Modal -->
+  <div id="manual-modal" class="modal" style="display:none">
+    <div class="modal-overlay" id="manual-overlay"></div>
+    <div class="modal-box" style="width:640px">
+      <div class="modal-header">
+        <h2>レシートを手動登録</h2>
+        <button class="modal-close" id="manual-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">店舗名 <span class="required">*</span></label>
+            <input type="text" id="m-store" class="input" placeholder="例：スーパーマルエツ" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">日付 <span class="required">*</span></label>
+            <input type="date" id="m-date" class="input" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">合計金額（円） <span class="required">*</span></label>
+            <input type="number" id="m-total" class="input" placeholder="例：1500" min="0" />
+          </div>
+        </div>
+
+        <div class="items-section">
+          <div class="items-header">
+            <span class="form-label">購入商品</span>
+            <button class="btn btn-sm btn-outline" id="add-item-btn">＋ 商品を追加</button>
+          </div>
+          <table class="table items-table">
+            <thead>
+              <tr><th>商品名</th><th>数量</th><th>単価（円）</th><th></th></tr>
+            </thead>
+            <tbody id="items-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" id="manual-cancel">キャンセル</button>
+        <button class="btn btn-primary" id="manual-submit">登録</button>
+      </div>
+    </div>
   </div>
 
   <!-- Upload Modal -->

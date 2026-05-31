@@ -1,3 +1,124 @@
+// Sample data
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('sample-btn').addEventListener('click', async () => {
+    if (!confirm('サンプルデータを追加しますか？')) return;
+    try {
+      const res = await fetch('/api/receipts/sample', { method: 'POST' });
+      const data = await res.json();
+      alert(data.message);
+      loadDashboard();
+      loadReceipts();
+    } catch (err) {
+      alert('エラー: ' + err.message);
+    }
+  });
+});
+
+// Manual entry modal
+let itemRows = [];
+
+function openManualModal() {
+  itemRows = [];
+  document.getElementById('m-store').value = '';
+  document.getElementById('m-date').value = new Date().toISOString().slice(0, 10);
+  document.getElementById('m-total').value = '';
+  renderItemRows();
+  document.getElementById('manual-modal').style.display = 'flex';
+}
+function closeManualModal() {
+  document.getElementById('manual-modal').style.display = 'none';
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('open-manual-btn').addEventListener('click', openManualModal);
+  document.getElementById('open-manual-btn2').addEventListener('click', openManualModal);
+  document.getElementById('manual-close').addEventListener('click', closeManualModal);
+  document.getElementById('manual-cancel').addEventListener('click', closeManualModal);
+  document.getElementById('manual-overlay').addEventListener('click', closeManualModal);
+
+  document.getElementById('add-item-btn').addEventListener('click', () => {
+    itemRows.push({ name: '', quantity: 1, unit_price: '' });
+    renderItemRows();
+  });
+
+  document.getElementById('manual-submit').addEventListener('click', submitManual);
+});
+
+function renderItemRows() {
+  const tbody = document.getElementById('items-tbody');
+  tbody.innerHTML = '';
+  itemRows.forEach((row, i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><input type="text" placeholder="商品名" value="${row.name}" data-i="${i}" data-field="name" /></td>
+      <td style="width:70px"><input type="number" placeholder="1" value="${row.quantity}" min="0.1" step="0.1" data-i="${i}" data-field="quantity" /></td>
+      <td style="width:110px"><input type="number" placeholder="単価" value="${row.unit_price}" min="0" data-i="${i}" data-field="unit_price" /></td>
+      <td style="width:40px"><button class="del-btn" data-i="${i}">✕</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+  tbody.querySelectorAll('input').forEach(input => {
+    input.addEventListener('input', e => {
+      const i = +e.target.dataset.i;
+      const field = e.target.dataset.field;
+      itemRows[i][field] = field === 'name' ? e.target.value : +e.target.value;
+      if (field === 'unit_price' || field === 'quantity') autoCalcTotal();
+    });
+  });
+  tbody.querySelectorAll('.del-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      itemRows.splice(+e.target.dataset.i, 1);
+      renderItemRows();
+      autoCalcTotal();
+    });
+  });
+}
+
+function autoCalcTotal() {
+  const total = itemRows.reduce((sum, r) => {
+    const qty = parseFloat(r.quantity) || 1;
+    const price = parseFloat(r.unit_price) || 0;
+    return sum + qty * price;
+  }, 0);
+  if (total > 0) document.getElementById('m-total').value = Math.round(total);
+}
+
+async function submitManual() {
+  const store = document.getElementById('m-store').value.trim();
+  const date = document.getElementById('m-date').value;
+  const total = parseFloat(document.getElementById('m-total').value);
+  if (!store || !date || isNaN(total)) {
+    alert('店舗名・日付・合計金額は必須です');
+    return;
+  }
+  const items = itemRows
+    .filter(r => r.name && r.unit_price)
+    .map(r => ({
+      name: r.name,
+      quantity: parseFloat(r.quantity) || 1,
+      unit_price: parseFloat(r.unit_price),
+      subtotal: (parseFloat(r.quantity) || 1) * parseFloat(r.unit_price),
+    }));
+  try {
+    document.getElementById('manual-submit').disabled = true;
+    const res = await fetch('/api/receipts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ store_name: store, date, total_amount: total, items }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || '登録エラー');
+    closeManualModal();
+    loadDashboard();
+    loadReceipts();
+    alert('登録しました！');
+  } catch (err) {
+    alert('エラー: ' + err.message);
+  } finally {
+    document.getElementById('manual-submit').disabled = false;
+  }
+}
+
 // Navigation
 document.querySelectorAll('.nav-link').forEach(link => {
   link.addEventListener('click', e => {
