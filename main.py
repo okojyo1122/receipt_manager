@@ -247,43 +247,72 @@ def create_receipt(data: ReceiptIn):
 
 @app.post("/api/receipts/sample")
 def insert_sample_data():
+    import random
     db = SessionLocal()
     try:
-        samples = [
-            {"store_name": "スーパーマルエツ", "date": "2026-05-01", "total_amount": 2340, "items": [
-                {"name": "牛乳", "quantity": 2, "unit_price": 198, "subtotal": 396},
-                {"name": "食パン", "quantity": 1, "unit_price": 248, "subtotal": 248},
-                {"name": "卵（10個）", "quantity": 1, "unit_price": 298, "subtotal": 298},
-                {"name": "鶏むね肉", "quantity": 1, "unit_price": 480, "subtotal": 480},
-                {"name": "トマト", "quantity": 3, "unit_price": 158, "subtotal": 474},
+        stores = [
+            {"name": "スーパーマルエツ", "items": [
+                ("牛乳", 198), ("食パン", 248), ("卵（10個）", 298), ("鶏むね肉", 480),
+                ("トマト", 158), ("豚バラ肉", 560), ("キャベツ", 128), ("にんじん", 88),
+                ("じゃがいも", 148), ("玉ねぎ", 98), ("納豆", 138), ("豆腐", 98),
             ]},
-            {"store_name": "コンビニセブン", "date": "2026-05-03", "total_amount": 856, "items": [
-                {"name": "牛乳", "quantity": 1, "unit_price": 238, "subtotal": 238},
-                {"name": "おにぎり", "quantity": 2, "unit_price": 148, "subtotal": 296},
-                {"name": "お茶", "quantity": 1, "unit_price": 158, "subtotal": 158},
+            {"name": "業務スーパー", "items": [
+                ("牛乳", 168), ("食パン", 198), ("鶏むね肉", 420), ("パスタ", 198),
+                ("卵（10個）", 268), ("冷凍餃子", 298), ("冷凍唐揚げ", 498), ("ケチャップ", 198),
+                ("マヨネーズ", 248), ("醤油", 298), ("サラダ油", 348), ("砂糖", 198),
             ]},
-            {"store_name": "業務スーパー", "date": "2026-05-07", "total_amount": 3120, "items": [
-                {"name": "牛乳", "quantity": 3, "unit_price": 168, "subtotal": 504},
-                {"name": "食パン", "quantity": 2, "unit_price": 198, "subtotal": 396},
-                {"name": "鶏むね肉", "quantity": 2, "unit_price": 420, "subtotal": 840},
-                {"name": "パスタ", "quantity": 2, "unit_price": 198, "subtotal": 396},
+            {"name": "コンビニセブン", "items": [
+                ("牛乳", 238), ("おにぎり", 148), ("お茶", 158), ("サンドイッチ", 298),
+                ("カップラーメン", 248), ("チョコレート", 198), ("ガム", 128), ("コーヒー", 168),
             ]},
-            {"store_name": "スーパーマルエツ", "date": "2026-05-12", "total_amount": 1870, "items": [
-                {"name": "卵（10個）", "quantity": 1, "unit_price": 298, "subtotal": 298},
-                {"name": "豚バラ肉", "quantity": 1, "unit_price": 560, "subtotal": 560},
-                {"name": "食パン", "quantity": 1, "unit_price": 248, "subtotal": 248},
-                {"name": "牛乳", "quantity": 1, "unit_price": 198, "subtotal": 198},
+            {"name": "コンビニローソン", "items": [
+                ("牛乳", 228), ("食パン", 278), ("おにぎり", 138), ("お茶", 148),
+                ("からあげクン", 238), ("プリン", 198), ("アイス", 178), ("コーヒー", 158),
             ]},
-            {"store_name": "コンビニローソン", "date": "2026-05-15", "total_amount": 620, "items": [
-                {"name": "牛乳", "quantity": 1, "unit_price": 228, "subtotal": 228},
-                {"name": "食パン", "quantity": 1, "unit_price": 278, "subtotal": 278},
+            {"name": "ドラッグストアマツモト", "items": [
+                ("シャンプー", 698), ("コンディショナー", 698), ("ボディソープ", 498),
+                ("歯磨き粉", 298), ("洗濯洗剤", 798), ("トイレットペーパー", 598),
+                ("ティッシュ", 398), ("マスク", 498), ("ビタミンC", 898), ("目薬", 698),
             ]},
-            {"store_name": "業務スーパー", "date": "2026-05-20", "total_amount": 2650, "items": [
-                {"name": "鶏むね肉", "quantity": 3, "unit_price": 420, "subtotal": 1260},
-                {"name": "パスタ", "quantity": 1, "unit_price": 198, "subtotal": 198},
-                {"name": "卵（10個）", "quantity": 2, "unit_price": 268, "subtotal": 536},
+            {"name": "イオンスーパー", "items": [
+                ("牛乳", 188), ("食パン", 228), ("卵（10個）", 278), ("鶏むね肉", 460),
+                ("サーモン刺身", 680), ("まぐろ刺身", 780), ("海老", 580), ("ほうれん草", 148),
+                ("ブロッコリー", 198), ("きのこ", 128), ("豚ロース", 520), ("合い挽き肉", 380),
             ]},
         ]
+
+        # Generate dates spanning 6 months (2025-12 to 2026-05)
+        import datetime as dt
+        start = dt.date(2025, 12, 1)
+        end = dt.date(2026, 5, 31)
+        date_range = (end - start).days
+
+        samples = []
+        for _ in range(100):
+            store = random.choice(stores)
+            n_items = random.randint(2, 6)
+            chosen = random.sample(store["items"], min(n_items, len(store["items"])))
+            items = []
+            for item_name, base_price in chosen:
+                qty = random.choice([1, 1, 1, 2, 2, 3])
+                price = base_price + random.randint(-20, 20)
+                price = max(price, 50)
+                items.append({
+                    "name": item_name,
+                    "quantity": qty,
+                    "unit_price": price,
+                    "subtotal": qty * price,
+                })
+            total = sum(i["subtotal"] for i in items)
+            rand_days = random.randint(0, date_range)
+            date_str = (start + dt.timedelta(days=rand_days)).isoformat()
+            samples.append({
+                "store_name": store["name"],
+                "date": date_str,
+                "total_amount": total,
+                "items": items,
+            })
+
         for s in samples:
             r = Receipt(store_name=s["store_name"], date=s["date"], total_amount=s["total_amount"])
             db.add(r)
